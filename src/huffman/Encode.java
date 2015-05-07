@@ -16,22 +16,10 @@ public class Encode {
     {
         if(args.length >= 2)
         {
-            /*
-            if(args[0].equals("-c"))
-            {
-                //saving the canon tree
-                String message = ReadFile(args[2]);
-                EncodeToFile(args[3], args[1], true, message);
-            }
-            else if(args[0].equals("-h"))
-            {
-                String message = ReadFile(args[2]);
-                EncodeToFile(args[3], args[1], false, message);
-            }
-            else*/
             {
                 String message = ReadFile(args[0]);
-                EncodeToFile(args[1], message);
+                String outputFile = args[1];
+                EncodeToFile(outputFile, message);
             }
         }
         else
@@ -41,7 +29,6 @@ public class Encode {
 
             EncodeToFile("butt.bin", "abbc");
         }
-        //Decode.main(new String[0]);
     }
     /**
      * Read the encoded binary file
@@ -55,6 +42,9 @@ public class Encode {
     }
 
     public static void EncodeToFile(String outputFile, String message){
+        /*
+        * Change some hashmaps to priority queues when trying to get a minimum
+        * */
 
         k =0; //number of character in alphabet
         TreeMap<String, Integer> frequency = new TreeMap<String, Integer>();
@@ -72,20 +62,6 @@ public class Encode {
         k = frequency.size();
         //create the normal tree
         TreeNode root;
-        //curr is the note with the lowest frequency
-        //codeOrder = Order(frequency, codeOrder);
-        /*
-        for (int a =0; a<codeOrder.size(); a++){
-            String chr = ""+codeOrder.get(a).charAt(0);
-            int frq = Integer.parseInt(codeOrder.get(a).substring(1));
-
-            TreeNode next =new TreeNode(chr, frq);
-            TreeNode parent = new TreeNode(curr.str+next.str, curr.count+next.count);
-            curr.setParent(parent);
-            next.setParent(parent);
-            curr= parent;
-            nodes.add(curr);
-        }*/
         root = makeTree(frequency);
         root.printTree(0);
         TreeMap<String, String> codes = new TreeMap<String, String>();
@@ -202,7 +178,6 @@ public class Encode {
             array.add(key + codes.get(key));
             codes.remove(key);
         }
-
         return array;
     }
     public static void writeFile(String outputFile, String message,  TreeMap<String, String> canonCodes){
