@@ -7,7 +7,7 @@ import java.util.TreeMap;
 /**
  * Created by rebecca on 5/4/15.
  */
-public class TreeNode {
+public class TreeNode implements Comparable<TreeNode> {
     public String str;
     public int count;
     public ArrayList<TreeNode> children;
@@ -33,6 +33,13 @@ public class TreeNode {
     @Override
     public String toString(){
         return this.str +", " + this.count;
+    }
+    @Override
+    public int compareTo(TreeNode node){
+        if (this.count == node.count)
+            return  0;
+        return (this.count > node.count)? -1:1;
+
     }
     private String tabs(int n) {
         String str = "";

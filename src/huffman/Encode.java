@@ -4,6 +4,7 @@ package huffman;
  * Created by rebecca on 5/4/15.
  */
 import java.io.*;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,6 +13,7 @@ import java.util.*;
 public class Encode {
     public static String eof = "\u0000";
     public static int k =-1;
+    public static int msgLen=-1;
     public static void main(String[] args) throws IOException
     {
         if(args.length >= 2)
@@ -19,15 +21,16 @@ public class Encode {
             {
                 String message = ReadFile(args[0]);
                 String outputFile = args[1];
-                EncodeToFile(outputFile, message);
+                EncodeToFile(message, outputFile);
             }
         }
         else
         {
             System.out.println("Please provide sourcefile and targetfile, or optionally sourcefile");
-            //String message = ReadFile("samples//text//sample7.txt");
 
-            EncodeToFile("butt.bin", "abbc");
+            String message = ReadFile("text/sample7.txt");
+            msgLen =message.length();
+            EncodeToFile(message, "butt.huf");
         }
     }
     /**
@@ -41,7 +44,7 @@ public class Encode {
         return new String(Files.readAllBytes(p));
     }
 
-    public static void EncodeToFile(String outputFile, String message){
+    public static void EncodeToFile(String message, String outputFile){
         /*
         * Change some hashmaps to priority queues when trying to get a minimum
         * */
@@ -59,7 +62,13 @@ public class Encode {
         }
         //end of file
         frequency.put(eof, 1);
+        System.out.println("freq");
+
+        for (Map.Entry<String, Integer> entry : frequency.entrySet()) {
+            System.out.println(entry.getKey()+" : "+entry.getValue());
+        }
         k = frequency.size();
+        System.out.println("k "+k);
         //create the normal tree
         TreeNode root;
         root = makeTree(frequency);
@@ -98,21 +107,34 @@ public class Encode {
             canonCodes.put(currChar, bin);
             binNum++;
         }
+        System.out.println("Canon codes");
         for (Map.Entry<String, String> entry : canonCodes.entrySet()) {
-            System.out.println(entry.getKey()+" : "+entry.getValue());
+            System.out.println(entry.getKey()+entry.getValue().length()+" : "+entry.getValue());
         }
+        System.out.println("writing file");
         writeFile(outputFile, message, canonCodes);
     }
     public static TreeNode makeTree(TreeMap<String, Integer> frequency){
-        ArrayList<TreeNode> nodes = new ArrayList<TreeNode>();
+        //ArrayList<TreeNode> nodes = new ArrayList<TreeNode>();
+        PriorityQueue<TreeNode> nodes = new PriorityQueue<TreeNode>();
+        for (Map.Entry<String, Integer> entry : frequency.entrySet()) {
+            nodes.add(new TreeNode(entry.getKey(), entry.getValue()));
+        }
 
-        while(frequency.size()>1){
+        while(nodes.size()>1){
             int min =100000;
             String minKey ="";
+            boolean first = true;
             for (Map.Entry<String,Integer> entry :frequency.entrySet()) {
-                if (entry.getValue() <=min&& (minKey.equals("") ||(minKey.length()> entry.getKey().length()))){
-                    min = entry.getValue();
+                if (first){
                     minKey = entry.getKey();
+                    first = false;
+                }
+                if (entry.getValue()<min||
+                        (entry.getValue()==min&&entry.getKey().length()==minKey.length()&& (entry.getKey().compareTo(minKey)>=0))||
+                        (entry.getValue()==min&&entry.getKey().length()<minKey.length())){
+                        min = entry.getValue();
+                        minKey = entry.getKey();
                 }
             }
             TreeNode curr = null;
@@ -128,10 +150,15 @@ public class Encode {
             frequency.remove(minKey);
             int min2 =100000;
             String minKey2 ="";
+            first = true;
             for (Map.Entry<String,Integer> entry :frequency.entrySet()) {
-                System.out.println("TEST " + minKey2.length() + " " +entry.getKey()+" " + entry.getKey().length());
-                System.out.println((minKey2.length()> entry.getKey().length()));
-                if (entry.getValue() <=min2 && (minKey2.equals("") ||(minKey2.length()> entry.getKey().length()))){
+                if (first){
+                    minKey2 = entry.getKey();
+                    first = false;
+                }
+                if (entry.getValue()<min2||
+                        (entry.getValue()==min2&&entry.getKey().length()==minKey2.length()&& (entry.getKey().compareTo(minKey2)>=0))||
+                        (entry.getValue()==min2 &&entry.getKey().length()<minKey2.length())){
                     min2 = entry.getValue();
                     minKey2 = entry.getKey();
                 }
@@ -153,9 +180,10 @@ public class Encode {
             System.out.println("parent " + parent);
             nodes.add(parent);
             frequency.put(parent.str, parent.count);
+            System.out.println("Pair: " + minKey + ", " + minKey2);
 
         }
-        return nodes.get(nodes.size()-1);
+        return null;
     }
 
     public static ArrayList<String> canonOrder(TreeMap<String, String> codes, ArrayList<String> array){
@@ -168,11 +196,11 @@ public class Encode {
                 if (entry.getValue().length() > max){
                     max= entry.getValue().length();
                 }
-            }
+            };
             for (Map.Entry<String, String> entry : codes.entrySet()) {
-                if (entry.getValue().length()==max && Character.getNumericValue(entry.getKey().toCharArray()[0]) <keyVal) {
+                if (entry.getValue().length()==max &&(int)(entry.getKey().toCharArray()[0]) <keyVal) {
                     key = entry.getKey();
-                    keyVal = Character.getNumericValue(entry.getKey().toCharArray()[0]);
+                    keyVal =(int)(entry.getKey().toCharArray()[0]);
                 }
             }
             array.add(key + codes.get(key));
@@ -181,18 +209,20 @@ public class Encode {
         return array;
     }
     public static void writeFile(String outputFile, String message,  TreeMap<String, String> canonCodes){
+
         try {
             // Put some bytes in a buffer so we can
             // write them. Usually this would be
             // image data or something. Or it might
             // be unicode text.
             byte buffer;
-            FileOutputStream outputStream = new FileOutputStream(outputFile, true);
-
+            FileOutputStream outputStream = new FileOutputStream(outputFile);
+            outputStream.write(k);
+            outputStream = new FileOutputStream(outputFile, true);
             ArrayList<Integer> header = new ArrayList<Integer>();
-            header.add(k);
             header.add(0);
             header.add(canonCodes.get(eof).length());
+            ArrayList<String>encodedmsg = new ArrayList<>();
 
             for (Map.Entry<String, String> entry : canonCodes.entrySet()) {
                 if (entry.getKey()!=eof){
@@ -200,33 +230,81 @@ public class Encode {
                     header.add(entry.getValue().length());
                 }
             }
+            //System.out.println("Created header. " + message);
             String secret ="";
-            for (int i=0; i<message.length();i++){
-                secret+=canonCodes.get(""+message.charAt(i));
-            }
-            System.out.println("secret: " + secret);
 
-            for (int k=0; k<secret.length(); k+=8){
-                if (k+8 <=secret.length()){
-                    System.out.println(secret.substring(k, k+8));
-                    header.add(Integer.parseInt(secret.substring(k, k+8), 2));
-                    header.add(0);
-                }
-                else if (secret.length()-k+8 !=0){
-                    String temp = secret.substring(k);
-                    while (temp.length()<8);
-                        temp+="0";
-                    header.add(Integer.parseInt(temp, 2));
-                }
-
-
-            }
             for (int j=0; j<header.size(); j++){
                 System.out.println(j +": "+header.get(j) + " " + Integer.toBinaryString(header.get(j)));
                 buffer = header.get(j).byteValue();
                 outputStream.write(buffer);
             }
+            StringBuilder sb = new StringBuilder();
+            if (message.length()<257){
+                for (int i=0; i<message.length();i++){
+                    sb.append(canonCodes.get("" + message.charAt(i)));
+                    while (sb.length()>=8){
+                        outputStream.write(Integer.parseInt(sb.toString().substring(0,8), 2));
+                        sb.delete(0,8);
+                    }
 
+                }
+                System.out.println(sb.toString());
+                if (sb.toString().isEmpty())
+                    outputStream.write(0);
+                else{
+                    while (sb.length()!=8)
+                        sb.append("0");
+                    outputStream.write(Integer.parseInt(sb.toString(), 2));
+                    outputStream.write(0);
+                }
+                    
+
+            }
+
+            else {
+                final Field field = String.class.getDeclaredField("value");
+                field.setAccessible(true);
+                final char[] chars = (char[]) field.get(message);
+                final int len = chars.length;
+                System.out.println(len);
+
+                for (int i=0; i<len; i++){
+                    sb.append(canonCodes.get("" + chars[i]));
+                    while (sb.length()>=8){
+                            //System.out.println(i + ": writing secret " +sb.length());
+                            outputStream.write(Integer.parseInt(sb.toString().substring(0,8), 2));
+                            sb.delete(0,8);
+                    }
+                }
+                System.out.println(sb.toString());
+                if (sb.toString().isEmpty())
+                    outputStream.write(0);
+                else{
+                    while (sb.length()!=8)
+                        sb.append("0");
+                    outputStream.write(Integer.parseInt(sb.toString(), 2));
+                    for (int i=0; i<canonCodes.get(eof).length(); i+=8)
+                        outputStream.write(0);
+                }
+
+            }
+
+            System.out.println("secret: " + secret);
+/*
+            for (int i=0; i<secret.length(); i+=8){
+                if (i+8 <=secret.length()){
+                    System.out.println("each byte: "+secret.substring(i, i+8));
+                    header.add(Integer.parseInt(secret.substring(i, i + 8), 2));
+                }
+                else if (secret.length()-i+8 !=0){
+                    String temp = secret.substring(i);
+                    while (temp.length()<8)
+                        temp+="0";
+                    header.add(Integer.parseInt(temp, 2));
+                }
+
+            }
+*/
             // write() writes as many bytes from the buffer
             // as the length of the buffer. You can also
             // use
@@ -242,6 +320,10 @@ public class Encode {
         catch(IOException ex) {
             System.out.println("Error writing file '" + outputFile + "'");
 
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
         }
     }
 }

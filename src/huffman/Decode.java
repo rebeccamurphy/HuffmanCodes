@@ -5,13 +5,15 @@ package huffman;
  */
 import javax.print.DocFlavor;
 import java.io.*;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 public class Decode {
     public static String eof = "\u0000";
-    public static int k =-1;
+    public static int k;
+    public static HashMap<String, Integer> codeLengths;
     public static void main(String[] args) throws IOException
     {
         if(args.length >= 2)
@@ -25,10 +27,12 @@ public class Decode {
         else
         {
             System.out.println("Please provide sourcefile and targetfile, or optionally sourcefile");
+            codeLengths = new HashMap<>();
+            k=-1;
             //String message = ReadFile("samples//text//sample7.txt");
-            String secret = ReadFile("sample1.huf");
-            System.out.println(secret);
-            DecodeToFile("butt.text", secret);
+            String secret = ReadFile("butt.huf");
+            //System.out.println(secret);
+            DecodeToFile(secret,"butt.txt");
         }
     }
     /**
@@ -36,58 +40,64 @@ public class Decode {
      * @param path File path to binary file
      * @return byte array representation of the binary file
      */
-    static String ReadFile(String path) throws IOException{
-        String temp="";
+    static String ReadFile(String path) throws IOException {
+        String temp="", temp2="";
+
             // Use this for reading the data.
-            byte[] buffer = new byte[1000];
+            BufferedInputStream bis = null;
+            InputStream inStream = new FileInputStream(path);
+            //BufferedReader in= new BufferedReader(new FileReader(path));
 
-            Path stream = Paths.get(path);
+            bis = new BufferedInputStream(inStream);
 
-            byte[] contents =Files.readAllBytes(stream);
-            // Always close files.
-            for (int i=0; i< contents.length; i++)
-                temp+= String.format("%8s", Integer.toBinaryString(contents[i] & 0xFF)).replace(' ', '0');
-
-        return temp;
-
-    }
-    public static void DecodeToFile(String outputFile, String secret){
-        int counter =0;
-        String temp ="";
-        HashMap<String, Integer> codeLengths = new HashMap<>();
-        HashMap<String, String> canonCodesList = new HashMap<>();
-        while (counter<8){
-            temp+="" +secret.charAt(counter);
-            counter++;
-        }
-        k = Integer.parseInt(temp, 2);
-        System.out.println(temp);
-        System.out.println(k);
-        temp="";
-        System.out.println(secret.length());
-        for(int i=counter; i<k*16+8;i++){
-            temp +="" + secret.charAt(i);
-
-            if (temp.length()%16==0){
-                System.out.println("temp: "+  temp);
-                int charNum = Integer.parseInt(temp.substring(0,8), 2);
-                String chr = (charNum==0)?"0" : ""+(char) charNum;
-                System.out.println("char : " + chr + " " +charNum);
-                codeLengths.put(chr, Integer.parseInt(temp.substring(8), 2));
+            //byte[] contents =Files.readAllBytes(stream);
+            k = bis.read();
+            System.out.println("k "+ k);
+            for (int i=1; i<k*2+1; i+=2){
+                temp= String.format("%8s", Integer.toBinaryString(bis.read() & 0xFF)).replace(' ', '0');
+                String chr = (temp.equals("00000000"))?eof :""+(char) Integer.parseInt(temp, 2);
+                System.out.println(temp+ " "+Integer.parseInt(temp)+" " +chr);
+                codeLengths.put(chr, (int) bis.read());
                 temp="";
             }
-        }
+            temp="";
+            StringBuilder sb = new StringBuilder(bis.available()*8);
+            while (bis.available()>0){
+                sb.append(String.format("%8s", Integer.toBinaryString(bis.read() & 0xFF)).replace(' ', '0'));
+            }
+            //System.out.println("Secret "+temp);
+        bis.close();
+        inStream.close();
+
+            // Always close files
+
+        //temp = Arrays.copyOfRange(contents, last+1, contents.length);
+
+        /*
+            for (int i=last+1; i< contents.length; i++){
+                temp+= String.format("%8s", Integer.toBinaryString(contents[i] & 0xFF)).replace(' ', '0');
+                System.out.println("i: " + i + " " +contents.length);
+                System.out.println(String.format("%8s", Integer.toBinaryString(contents[i] & 0xFF)).replace(' ', '0'));
+            }
+        */
+        return sb.toString();
+
+    }
+    public static void DecodeToFile(String secret, String outputFile){
+        int counter =0;
+        String temp ="";
+        HashMap<String, String> canonCodesList = new HashMap<>();
         System.out.println(codeLengths.size());
         counter=k*16+8;
-        String encodedMsg = secret.substring(counter);
         ArrayList<String> canonOrderList = new ArrayList<String>();
         for (Map.Entry<String, Integer> entry : codeLengths.entrySet()) {
             System.out.println(entry.getKey()+" : "+entry.getValue());
         }
 
-        int len = codeLengths.get("0");
+        int len = codeLengths.get(eof);
 
         canonOrderList = canonOrder(codeLengths, canonOrderList);
+
         for (int i=0; i<canonOrderList.size();i++){
             System.out.println(canonOrderList.get(i));
         }
@@ -111,19 +121,25 @@ public class Decode {
         temp="";
         String decodedMsg ="";
         //removes eof
+        System.out.println("Canon codes");
         for (Map.Entry<String, String> entry : canonCodesList.entrySet()) {
             System.out.println(entry.getKey()+" : "+entry.getValue());
         }
-        canonCodesList.remove("00");
-        System.out.println(encodedMsg);
-        for (int j =0; j<encodedMsg.length(); j++){
-            temp+=""+encodedMsg.charAt(j);
+        //System.out.println(secret);
+        StringBuilder sb = new StringBuilder();
+        for (int j =0; j<secret.length(); j++){
+            temp+=""+secret.charAt(j);
             if (canonCodesList.containsKey(temp)){
-                decodedMsg+= canonCodesList.get(temp);
-                temp="";
+                if (!canonCodesList.get(temp).equals(eof)){
+                    sb.append(canonCodesList.get(temp));
+                    temp="";
+                }
+                else
+                    break;
             }
         }
-        System.out.println(decodedMsg);
+        decodedMsg =sb.toString();
+        //System.out.println(decodedMsg);
         writeToFile(outputFile, decodedMsg);
     }
     public static void writeToFile(String outputFile, String decodedMsg){
@@ -140,7 +156,7 @@ public class Decode {
 
     }
     public static ArrayList<String> canonOrder(HashMap<String, Integer> codes, ArrayList<String> array){
-        codes.remove(eof);
+        //codes.remove(eof);
         while (codes.size()>0){
             int max =-1;
             String key ="";
@@ -149,11 +165,11 @@ public class Decode {
                 if (entry.getValue() > max){
                     max= entry.getValue();
                 }
-            }
+            };
             for (Map.Entry<String, Integer> entry : codes.entrySet()) {
-                if (entry.getValue()==max && Character.getNumericValue(entry.getKey().charAt(0)) <keyVal) {
+                if (entry.getValue()==max &&(int)(entry.getKey().toCharArray()[0]) <keyVal) {
                     key = entry.getKey();
-                    keyVal = Character.getNumericValue(entry.getKey().toCharArray()[0]);
+                    keyVal =(int)(entry.getKey().toCharArray()[0]);
                 }
             }
             array.add(key + codes.get(key));
