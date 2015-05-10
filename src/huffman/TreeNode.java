@@ -38,7 +38,7 @@ public class TreeNode implements Comparable<TreeNode> {
     public int compareTo(TreeNode node){
         if (this.count == node.count)
             return  0;
-        return (this.count > node.count)? -1:1;
+        return (this.count < node.count)? -1:1;
 
     }
     private String tabs(int n) {
