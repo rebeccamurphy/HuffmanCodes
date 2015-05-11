@@ -27,8 +27,11 @@ public class Encode {
         }
         else
         {
-            System.out.println("Please provide sourcefile and targetfile, or optionally sourcefile");
+            System.out.println("Please provide sourcefile and targetfile.");
 
+            String message = ReadFile("butt.text");
+            String outputFile = "butt.huf";
+            EncodeToFile(message, outputFile);
         }
     }
     /**
@@ -36,12 +39,17 @@ public class Encode {
      * @param path File path to binary file
      * @return byte array representation of the binary file
      */
-    static String ReadFile(String path) throws IOException
+    public static String ReadFile(String path) throws IOException
     {
         Path p = Paths.get(path);
         return new String(Files.readAllBytes(p));
     }
 
+    /**
+     * Creates the encoded message according to the huffman algorithm.
+     * @param message read in message from text file
+     * @param outputFile binary file to be written to
+     */
     public static void EncodeToFile(String message, String outputFile){
         /*
         * Change some hashmaps to priority queues when trying to get a minimum
@@ -61,14 +69,16 @@ public class Encode {
         //end of file
         frequency.put(eof, 1);
         k = frequency.size();
-        System.out.println("k "+k);
         //create the normal tree
         TreeNode root;
         root = makeTree(frequency);
-        root.printTree(0);
         TreeMap<String, String> codes = new TreeMap<String, String>();
         TreeMap<String, String> canonCodes = new TreeMap<String, String>();
         root.getCodes("", codes);
+
+        for (Map.Entry<String, String> entry : codes.entrySet()) {
+            System.out.println(entry.getKey()+" : " +entry.getValue());
+        }
         int len = codes.get(eof).length();
         //to create a binary num with the right num of 0s
         char[] temp = new char[len];
@@ -97,8 +107,17 @@ public class Encode {
             canonCodes.put(currChar, bin);
             binNum++;
         }
+        for (Map.Entry<String, String> entry : canonCodes.entrySet()) {
+            System.out.println(entry.getKey()+" : " +entry.getValue());
+        }
         writeFile(outputFile, message, canonCodes);
     }
+
+    /**
+     * Makes a Tree out of the frequencies
+     * @param frequency maps of chars to their frequency
+     * @return root node of tree
+     */
     public static TreeNode makeTree(TreeMap<String, Integer> frequency){
 
         PriorityQueue<TreeNode> nodes = new PriorityQueue<TreeNode>();
@@ -108,20 +127,21 @@ public class Encode {
         while(nodes.size()>1){
             TreeNode min1 = nodes.poll();
             TreeNode min2 = nodes.poll();
-
-            System.out.println("min1 " + min1);
-            System.out.println("min2 " + min2);
             TreeNode parent = new TreeNode(min1.str+min2.str, min1.count+min2.count);
             min1.setParent(parent);
             min2.setParent(parent);
-            System.out.println("parent " + parent);
             nodes.add(parent);
-            System.out.println("Pair: " + min1 + ", " + min2);
 
         }
         return nodes.peek();
     }
 
+    /**
+     * Puts the huffman codes in canon order
+     * @param codes non-canon huffman codes
+     * @param array of canon codes
+     * @return array of canon codes
+     */
     public static ArrayList<String> canonOrder(TreeMap<String, String> codes, ArrayList<String> array){
         codes.remove(eof);
         while (codes.size()>0){
@@ -144,6 +164,13 @@ public class Encode {
         }
         return array;
     }
+
+    /***
+     * Writes the encoded message to a binary file
+     * @param outputFile path to outputfile
+     * @param message message to be written
+     * @param canonCodes reference of how to encode characters
+     */
     public static void writeFile(String outputFile, String message,  TreeMap<String, String> canonCodes){
 
         try {
@@ -156,14 +183,14 @@ public class Encode {
             header.add(canonCodes.get(eof).length());
 
             for (Map.Entry<String, String> entry : canonCodes.entrySet()) {
-                if (entry.getKey().equals(eof)){
+                if (!entry.getKey().equals(eof)){
+                    System.out.println("header: " + (int)(entry.getKey().charAt(0)));
                     header.add((int)(entry.getKey().charAt(0)));
                     header.add(entry.getValue().length());
                 }
             }
 
             for (int j=0; j<header.size(); j++){
-                System.out.println(j +": "+header.get(j) + " " + Integer.toBinaryString(header.get(j)));
                 buffer = header.get(j).byteValue();
                 outputStream.write(buffer);
             }
